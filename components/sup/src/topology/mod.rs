@@ -248,7 +248,6 @@ fn run_internal<'a>(sm: &mut StateMachine<State, Worker<'a>, SupError>,
                     -> Result<()> {
     {
         let package = worker.package.read().unwrap();
-        let () = package;
         let service_config = worker.service_config.read().unwrap();
         try!(package.create_svc_path());
         try!(package.copy_run(&service_config));
