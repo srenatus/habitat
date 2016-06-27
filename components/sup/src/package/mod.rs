@@ -151,6 +151,14 @@ impl Package {
         self.pkg_install.svc_path()
     }
 
+    pub fn svc_user(&self) -> Option<String> {
+        try!(self.pkg_install.svc_user())
+    }
+
+    pub fn svc_group(&self) -> Option<String> {
+        try!(self.pkg_install.svc_group())
+    }
+
     /// Create the service path for this package.
     pub fn create_svc_path(&self) -> Result<()> {
         let runas = format!("{}:{}", SERVICE_PATH_OWNER, SERVICE_PATH_GROUP);

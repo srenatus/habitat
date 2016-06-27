@@ -128,6 +128,30 @@ impl PackageInstall {
         }
     }
 
+    pub fn svc_user(&self) -> Result<Option<String>> {
+        match self.read_metafile(MetaFile::SvcUser) {
+            Ok(body) => {
+                Ok(Some(body))
+            }
+            Err(Error::MetaFileNotFound(MetaFile::SvcUser)) => {
+                Ok(None)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    pub fn svc_group(&self) -> Result<Option<String>> {
+        match self.read_metafile(MetaFile::SvcGroup) {
+            Ok(body) => {
+                Ok(Some(body))
+            }
+            Err(Error::MetaFileNotFound(MetaFile::SvcGroup)) => {
+                Ok(None)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
     pub fn ident(&self) -> &PackageIdent {
         &self.ident
     }
