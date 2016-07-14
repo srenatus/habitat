@@ -1953,7 +1953,7 @@ _build_metadata() {
   build_line "Generating blake2b hashes of all files in the package"
   find $pkg_prefix -type f \
     | $_sort_cmd \
-    | while read file; do _b2sum $file; done > ${pkg_name}_blake2bsums
+    | while read file; do _b2sum "$file"; done > ${pkg_name}_blake2bsums
 
   build_line "Generating signed metadata FILES"
   $HAB_BIN pkg sign --origin $pkg_origin ${pkg_name}_blake2bsums $pkg_prefix/FILES
