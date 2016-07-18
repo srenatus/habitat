@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+use std::collections::HashMap;
 use std::net::SocketAddrV4;
 use std::str::FromStr;
 
@@ -49,6 +49,7 @@ impl ConfigFile for Config {
             println!("Loaded service def: {}", &sd.to_string());
             let sdname = sd.to_string();
             sd.cli_args = Self::lookup_service_param(&toml, &sdname, "start");
+            sd.env = Self::lookup_service_param_table(&toml, &sdname, "env");
             sd.ident.release = Self::lookup_service_param(&toml, &sdname, "release");
             sd.ident.version = Self::lookup_service_param(&toml, &sdname, "version");
             cfg.service_defs.push(sd);
@@ -100,6 +101,7 @@ impl Config {
                             param_name: &str)
                             -> Option<String> {
         let key = format!("cfg.services.{}.{}", service_name, param_name);
+        debug!("Looking up param {}", &key);
         if let Some(k) = toml.lookup(&key) {
             if let Some(k) = k.as_str() {
                 return Some(k.to_string());
@@ -108,13 +110,46 @@ impl Config {
         None
     }
 
+    /// Perform a lookup on a dynamic toml path as part of a service.
+    /// For example, for a value `valuename` in service name
+    /// `origin.name.group.org`, we'll perform a lookup on
+    /// `cfg.services.origin.name.group.org.valuename` and return
+    /// a Some(string) if it's available.
+    fn lookup_service_param_table(toml: &toml::Value,
+                                  service_name: &str,
+                                  param_name: &str)
+                                    -> HashMap<String, String> {
+        let key = format!("cfg.services.{}.{}", service_name, param_name);
+        debug!("Looking up table {}", &key);
+        let mut kvs : HashMap<String, String> = HashMap::new();
+        if let Some(k) = toml.lookup(&key) {
+            if let Some(tbl) = k.as_table() {
+                for (ref k, ref v) in tbl.iter() {
+                    let k = k.to_string();
+                    let v = v.as_str().map_or("".to_string(), |v| v.to_string());
+                    debug!("table param {} = {}", &k, &v);
+                    kvs.insert(k, v);
+                }
+            }
+        }
+        kvs
+    }
+
+
     /// traverse a toml tree of Tables, return a list of
     /// Strings for each unique path
     fn traverse(v: &toml::Value) -> Vec<String> {
         fn _traverse(v: &toml::Value, path: &mut Vec<String>, paths: &mut Vec<String>) {
+            // allow processing of paths longer than
+            //   <origin>.<name>.<group>.<organization>
             let current_path = path.join(".");
             if let Some(tbl) = v.as_table() {
+                if path.len() == 4 {
+                    paths.push(current_path);
+                    return;
+                }
                 // return if this table doesn't have any child tables
+                // for path lengths < 4
                 if tbl.values().all(|ref v| v.as_table().is_none()) {
                     paths.push(current_path);
                     return;
@@ -227,6 +262,26 @@ mod tests {
         let cfg = Config::from_toml(root).unwrap();
         assert_eq!(None, cfg.dir_sup_listen);
         assert_eq!(1, cfg.service_defs.len());
+    }
+
+    #[test]
+    fn test_env_params() {
+        let service_toml = r#"
+        [cfg.services.core.redis.somegroup.someorg]
+        start = "foo"
+        [cfg.services.core.rngd.foo.someorg]
+        start = "bar"
+        [cfg.services.core.rngd.foo.someorg.env]
+        JAVA_HOME="/dev/null"
+        TCL_HOME="/bin/false"
+        [cfg.services.myorigin.xyz.foo.otherorg]
+        [foo]
+        "#;
+
+        let root: toml::Value = service_toml.parse().unwrap();
+        let cfg = Config::from_toml(root).unwrap();
+        let sd1 = &cfg.service_defs()[1];
+        println!("THIS TEST");
     }
 
 }
